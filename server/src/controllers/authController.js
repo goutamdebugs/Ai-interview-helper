@@ -5,9 +5,9 @@ const bcrypt = require('bcryptjs');
 
 const generateToken = (id) => {
     return jwt.sign(
-        {id},
+        { id },
         process.env.JWT_SECRET,
-        {expiresIn:'10d'}
+        { expiresIn: '10d' }
     )
 }
 
@@ -16,15 +16,15 @@ const generateToken = (id) => {
 // @access  Public
 
 
-const registerUser = async (req,res) =>{
+const registerUser = async (req, res) => {
     try {
-        const {name, email, password} = req.body;
+        const { name, email, password } = req.body;
         //check if user is exist
-        const userExist = await User.findOne({email});
-        if(userExist){
-            return res.send(400).json({
-                success : 'falsh',
-                message : 'user already exists'
+        const userExist = await User.findOne({ email });
+        if (userExist) {
+            return res.status(400).json({
+                success: false,
+                message: 'user already exists'
             })
         }
         const salt = await bcrypt.genSalt(10);
@@ -33,14 +33,14 @@ const registerUser = async (req,res) =>{
         const user = await User.create({
             name,
             email,
-            password : hashedPassword
+            password: hashedPassword
         });
 
-        if(user) {
-            res.send(201).json({
-                success: "true",
+        if (user) {
+            res.status(201).json({
+                success: true,
                 message: "user register sucessfully",
-                data:{
+                data: {
                     _id: user._id,
                     email: user.email,
                     role: user.role,
@@ -48,11 +48,11 @@ const registerUser = async (req,res) =>{
                 }
             })
         }
-        
+
     } catch (error) {
-        console.log("register error in authControler.js",error);
-        res.send(500).json({
-            success : "false",
+        console.log("register error in authControler.js", error);
+        res.status(500).json({
+            success: false,
             message: "server error in register process",
             error: error.message
         })
@@ -62,23 +62,23 @@ const registerUser = async (req,res) =>{
 // login user
 // post   /api/auth/login
 
-const loginUser = async () =>{
+const loginUser = async (req, res) => {
     try {
-        const {email,password} = req.body
+        const { email, password } = req.body
         // check user exist
-        const user = await User.findOne({email})
-        if(!user){
-            res.send(401).json({
+        const user = await User.findOne({ email })
+        if (!user) {
+            return res.status(401).json({
                 success: "false",
                 message: "user email or password"
             })
         }
         const isPasswordValid = await bcrypt.compare(password, user.password)
 
-        if(!isPasswordValid) {
-            res.send(402).json({
-                success:'false',
-                message:'invalide email or passswor'
+        if (!isPasswordValid) {
+        return    res.status(401).json({
+                success: false,
+                message: 'invalide email or passswor'
             })
         }
         res.json({
@@ -94,4 +94,32 @@ const loginUser = async () =>{
     }
 }
 
-module.exports = {registerUser, loginUser}
+// @desc    Get current user
+// @route   GET /api/auth/me
+// @access  Private
+
+const getMe = async (req, res) => {
+    try {
+        // req.user will be set by auth middleware
+        const user = await User.findById(req.user.id).select('-password');
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: user
+        });
+    } catch (error) {
+        console.error('Get me error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error'
+        });
+    }
+};
+module.exports = { registerUser, loginUser, getMe }
